@@ -18,6 +18,7 @@ from app.schemas.tray import (
     validate_config_against_slots,
 )
 from app.services.tray.client import TrayClient
+from app.services.tray.errors import TrayError
 from app.services.tray.estate import _credential, load_estate
 from app.services.tray.solutions import (
     SolutionsClient,
@@ -42,7 +43,17 @@ async def estate_loader(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Workspace context is required",
         )
-    return await load_estate(str(resolved))
+    try:
+        return await load_estate(str(resolved))
+    except TrayError as exc:
+        # Upstream Tray call failed (e.g. rejected/expired credentials). Surface a
+        # clean gateway error with provenance; never leak token material.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Tray {exc.surface.value} call failed (status {exc.status}); "
+            f"{'official' if exc.official else 'unofficial'} surface. "
+            "Verify the workspace's Tray credentials.",
+        ) from exc
 
 
 # Friendly alias for callers that name dependency overrides by intent.
