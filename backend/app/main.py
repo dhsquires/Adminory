@@ -81,9 +81,11 @@ async def health() -> dict:
 # Include API routers
 from app.api import auth
 from app.api.external import workspace
+from app.api.internal import tray as tray_router
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(workspace.router, prefix="/api/external", tags=["workspace"])
+app.include_router(tray_router.router, prefix="/api/internal/tray", tags=["tray"])
 
 # TODO: Include additional routers when ready
 # from app.api import sso
