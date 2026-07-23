@@ -17,7 +17,7 @@ export default function ProtectedRoute({
   requireAdmin = false,
   requireSuperAdmin = false,
   requireEmailVerified = false,
-  redirectTo = '/auth/login',
+  redirectTo = '/login',
 }: ProtectedRouteProps) {
   const router = useRouter()
   const { isAuthenticated, isAdmin, isSuperAdmin, isEmailVerified, isLoading } =
@@ -45,7 +45,7 @@ export default function ProtectedRoute({
 
       // Check if email verification is required
       if (requireEmailVerified && !isEmailVerified) {
-        router.push('/auth/verify-email-required')
+        router.push('/verify-email-required')
         return
       }
     }

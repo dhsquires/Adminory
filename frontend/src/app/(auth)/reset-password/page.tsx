@@ -57,7 +57,7 @@ export default function ResetPasswordPage() {
       setSuccess(true)
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.push('/auth/login')
+        router.push('/login')
       }, 2000)
     } catch (error: any) {
       setError(
@@ -174,7 +174,7 @@ export default function ResetPasswordPage() {
 
       <div className="mt-6 text-center">
         <Link
-          href="/auth/login"
+          href="/login"
           className="text-sm text-blue-600 hover:text-blue-800"
         >
           ← Back to login

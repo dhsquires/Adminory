@@ -183,31 +183,51 @@ def _kpi(value: dict[str, Any]) -> KpiSummary:
     )
 
 
-def _users(instances: list[SolutionInstanceDTO]) -> list[EndUserDTO]:
+def _users(
+    user_rows: list[dict[str, Any]],
+    instances: list[SolutionInstanceDTO],
+) -> list[EndUserDTO]:
+    """Build end-user DTOs from the real `users` list, enriched with each
+    user's instances. End users are first-class in Embedded — they exist
+    even with zero instances, so we drive off the user list, not the
+    instances (the old derive-from-instances approach dropped every user
+    who had none)."""
     grouped: dict[str, list[SolutionInstanceDTO]] = {}
     for instance in instances:
-        identifier = instance.external_user_id or instance.user_id
-        if identifier is not None:
-            grouped.setdefault(identifier, []).append(instance)
+        for key in (instance.external_user_id, instance.user_id):
+            if key is not None:
+                grouped.setdefault(key, []).append(instance)
+                break
 
-    return [
-        EndUserDTO(
-            external_user_id=identifier,
-            user_id=next(
-                (instance.user_id for instance in user_instances if instance.user_id),
-                None,
-            ),
-            token_status=(
-                "expired"
-                if any(instance.token_expired for instance in user_instances)
-                else "active"
-            ),
-            instance_count=len(user_instances),
-            auth_healthy=all(instance.auth_healthy for instance in user_instances),
-            source="official",
+    result: list[EndUserDTO] = []
+    for user in user_rows:
+        external_id = _first(user, "externalUserId", "external_user_id", "id")
+        user_id = _first(user, "id", "userId")
+        user_instances = (
+            grouped.get(str(external_id) if external_id is not None else "")
+            or (grouped.get(str(user_id)) if user_id is not None else None)
+            or []
         )
-        for identifier, user_instances in grouped.items()
-    ]
+        result.append(
+            EndUserDTO(
+                external_user_id=str(external_id) if external_id is not None else "",
+                user_id=str(user_id) if user_id is not None else None,
+                name=_first(user, "name"),
+                token_status=(
+                    "expired"
+                    if any(inst.token_expired for inst in user_instances)
+                    else "active"
+                ),
+                instance_count=len(user_instances),
+                auth_healthy=(
+                    all(inst.auth_healthy for inst in user_instances)
+                    if user_instances
+                    else True
+                ),
+                source="official",
+            )
+        )
+    return result
 
 
 async def _credential(workspace_id: str) -> TrayCredential:
@@ -235,10 +255,40 @@ async def load_estate(workspace_id: str) -> dict[str, Any]:
         master_token,
         session_bearer=session_bearer,
     ) as client:
-        solution_rows, instance_rows = await asyncio.gather(
+        solution_rows, user_rows = await asyncio.gather(
             client.solutions(master_token),
-            client.solution_instances(master_token),
+            client.external_users(master_token),
         )
+
+        # Solution instances live under each END USER's own token, not the
+        # master principal's viewer (which only sees the master's own, i.e.
+        # none). So authorize each external user, list that user's instances,
+        # and tag each row with its owner identity. Verified against the live
+        # Embedded schema: root `users` -> per-user `authorize` -> user token
+        # -> `viewer.solutionInstances`.
+        async def _instances_for_user(user: dict[str, Any]) -> list[dict[str, Any]]:
+            user_id = user.get("id")
+            external_id = user.get("externalUserId")
+            if not user_id:
+                return []
+            try:
+                auth = await client.authorize(str(user_id))
+                user_token = auth.get("accessToken")
+                if not user_token:
+                    return []
+                rows = await client.solution_instances(str(user_token))
+            except Exception:
+                # One bad user must not sink the whole estate load.
+                return []
+            for row in rows:
+                row.setdefault("userId", user_id)
+                row.setdefault("externalUserId", external_id)
+            return rows
+
+        instance_lists = await asyncio.gather(
+            *[_instances_for_user(user) for user in user_rows]
+        )
+        instance_rows = [row for rows in instance_lists for row in rows]
 
         raw_kpis: dict[str, Any] = {}
         raw_instance_kpis: dict[str, Any] = {}
@@ -274,7 +324,7 @@ async def load_estate(workspace_id: str) -> dict[str, Any]:
         )
         for instance in instances
     ]
-    users = _users(instances)
+    users = _users(user_rows, instances)
     overview = estate_overview(instances, users, solutions, kpis)
 
     return {

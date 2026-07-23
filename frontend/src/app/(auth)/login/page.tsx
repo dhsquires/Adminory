@@ -21,7 +21,7 @@ export default function LoginPage() {
     try {
       await login(formData.email, formData.password)
       // Redirect to dashboard on success
-      router.push('/internal/dashboard')
+      router.push('/internal/tray')
     } catch (error) {
       // Error is already set in the store
       console.error('Login error:', error)
@@ -102,7 +102,7 @@ export default function LoginPage() {
           </div>
 
           <Link
-            href="/auth/forgot-password"
+            href="/forgot-password"
             className="text-sm text-blue-600 hover:text-blue-800"
           >
             Forgot password?
@@ -122,7 +122,7 @@ export default function LoginPage() {
         <p className="text-sm text-gray-600">
           Don&apos;t have an account?{' '}
           <Link
-            href="/auth/register"
+            href="/register"
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
             Sign up

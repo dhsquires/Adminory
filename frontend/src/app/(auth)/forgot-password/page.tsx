@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
             Please check your spam folder if you don&apos;t see the email.
           </p>
           <Link
-            href="/auth/login"
+            href="/login"
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
             ← Back to login
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
     <div className="bg-white rounded-lg shadow-lg p-8">
       <div className="mb-6">
         <Link
-          href="/auth/login"
+          href="/login"
           className="text-sm text-gray-600 hover:text-gray-900 flex items-center"
         >
           <svg

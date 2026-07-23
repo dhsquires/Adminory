@@ -41,7 +41,7 @@ export default function RegisterPage() {
       setSuccess(true)
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.push('/auth/login')
+        router.push('/login')
       }, 2000)
     } catch (error) {
       // Error is already set in the store
@@ -214,7 +214,7 @@ export default function RegisterPage() {
         <p className="text-sm text-gray-600">
           Already have an account?{' '}
           <Link
-            href="/auth/login"
+            href="/login"
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
             Sign in

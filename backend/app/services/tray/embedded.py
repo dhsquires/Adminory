@@ -4,13 +4,19 @@ import os
 from typing import Any
 
 
+# NOTE: In the live Tray Embedded External schema, `solutions` and
+# `solutionInstances` are fields on `viewer`, NOT the Query root, and a
+# Solution's display field is `title` (there is no `name`). Verified via
+# schema introspection against tray.io/graphql.
 SOLUTIONS_QUERY = """
 query Solutions {
-  solutions {
-    edges {
-      node {
-        id
-        name
+  viewer {
+    solutions {
+      edges {
+        node {
+          id
+          title
+        }
       }
     }
   }
@@ -19,12 +25,34 @@ query Solutions {
 
 SOLUTION_INSTANCES_QUERY = """
 query SolutionInstances {
-  solutionInstances {
+  viewer {
+    solutionInstances {
+      edges {
+        node {
+          id
+          name
+          enabled
+          created
+          solution {
+            id
+            title
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+EXTERNAL_USERS_QUERY = """
+query ExternalUsers {
+  users(first: 100) {
     edges {
       node {
         id
         name
-        enabled
+        externalUserId
+        isTestUser
       }
     }
   }
@@ -135,11 +163,26 @@ class EmbeddedOperationsMixin:
 
     async def solutions(self, token: str) -> list[dict[str, Any]]:
         data = await self._graphql(SOLUTIONS_QUERY, {}, token=token)
-        return _connection_items(data.get("solutions"))
+        viewer = data.get("viewer") or {}
+        return _connection_items(viewer.get("solutions"))
 
     async def solution_instances(self, token: str) -> list[dict[str, Any]]:
         data = await self._graphql(SOLUTION_INSTANCES_QUERY, {}, token=token)
-        return _connection_items(data.get("solutionInstances"))
+        viewer = data.get("viewer") or {}
+        items = _connection_items(viewer.get("solutionInstances"))
+        # Flatten the nested `solution { id title }` so the DTO layer can
+        # populate solution_id / solution_name (it reads flat keys).
+        for item in items:
+            solution = item.get("solution")
+            if isinstance(solution, dict):
+                item.setdefault("solutionId", solution.get("id"))
+                item.setdefault("solutionName", solution.get("title"))
+        return items
+
+    async def external_users(self, token: str) -> list[dict[str, Any]]:
+        """List all Embedded end users (the root `users` connection)."""
+        data = await self._graphql(EXTERNAL_USERS_QUERY, {}, token=token)
+        return _connection_items(data.get("users"))
 
     async def create_external_user(
         self,
