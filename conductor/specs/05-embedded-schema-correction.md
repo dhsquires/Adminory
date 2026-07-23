@@ -41,9 +41,15 @@ Write path (mutation names + input shapes — all `input:` arg → `*Payload`):
   — **no methods exist yet; add them.**
 - `authorize(AuthorizeInput{ userId, clientMutationId })` → `AuthorizePayload` (has `accessToken`).
 - `removeAuthentication` takes **`RemoveUserAuthenticationInput`**.
-- `createSolutionInstance` / `createExternalUser` / `generateAuthorizationCode`
-  / `createUserAuthentication` input+payload field names TO BE CONFIRMED by
-  introspection before edits (task in Phase 1).
+- `createSolutionInstance(CreateSolutionInstanceInput{ solutionId,
+  instanceName, authValues, configValues, clientMutationId })` — **also uses
+  `instanceName`, not `name`** (confirmed Phase 1).
+- `createExternalUser(CreateExternalUserInput{ name, externalUserId, isTestUser })`,
+  `generateAuthorizationCode(GenerateAuthorizationCodeInput{ userId })` — current
+  code correct.
+- Instance read subfields confirmed: `configValues { externalId value:Json }`,
+  `authValues { externalId authId }`, `solutionVersionFlags { hasNewerVersion,
+  requiresUserInputToUpdateVersion, requiresSystemInputToUpdateVersion }`.
 
 ## Backend deliverables
 1. `backend/app/services/tray/embedded.py`

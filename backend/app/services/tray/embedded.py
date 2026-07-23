@@ -37,6 +37,17 @@ query SolutionInstances {
             id
             title
           }
+          configValues {
+            externalId
+            value
+          }
+          authValues {
+            externalId
+            authId
+          }
+          solutionVersionFlags {
+            hasNewerVersion
+          }
         }
       }
     }
@@ -108,14 +119,28 @@ mutation UpdateSolutionInstance($input: UpdateSolutionInstanceInput!) {
 """
 
 DELETE_SOLUTION_INSTANCE_MUTATION = """
-mutation DeleteSolutionInstance($input: DeleteSolutionInstanceInput!) {
-  deleteSolutionInstance(input: $input) {
-    solutionInstanceId
+mutation RemoveSolutionInstance($input: RemoveSolutionInstanceInput!) {
+  removeSolutionInstance(input: $input) {
+    clientMutationId
   }
 }
 """
 
-# UNCONFIRMED wire name — see spec
+UPDATE_EXTERNAL_USER_MUTATION = """
+mutation UpdateExternalUser($input: UpdateExternalUserInput!) {
+  updateExternalUser(input: $input) {
+    userId
+  }
+}
+"""
+
+REMOVE_EXTERNAL_USER_MUTATION = """
+mutation RemoveExternalUser($input: RemoveExternalUserInput!) {
+  removeExternalUser(input: $input) {
+    clientMutationId
+  }
+}
+"""
 
 
 def _with_source(value: dict[str, Any]) -> dict[str, Any]:
@@ -223,7 +248,7 @@ class EmbeddedOperationsMixin:
         *,
         user_token: str,
     ) -> dict[str, Any]:
-        variables = {"input": {"solutionId": solution_id, "name": name}}
+        variables = {"input": {"solutionId": solution_id, "instanceName": name}}
         data = await self._graphql(
             CREATE_SOLUTION_INSTANCE_MUTATION,
             variables,
@@ -244,7 +269,7 @@ class EmbeddedOperationsMixin:
         if enabled is not None:
             instance_input["enabled"] = enabled
         if name is not None:
-            instance_input["name"] = name
+            instance_input["instanceName"] = name
 
         data = await self._graphql(
             UPDATE_SOLUTION_INSTANCE_MUTATION,
@@ -260,15 +285,46 @@ class EmbeddedOperationsMixin:
         *,
         user_token: str,
     ) -> dict[str, Any]:
-        data = await self._graphql(
+        # RemoveSolutionInstancePayload carries only clientMutationId; a
+        # response without GraphQL errors means the instance was removed.
+        await self._graphql(
             DELETE_SOLUTION_INSTANCE_MUTATION,
             {"input": {"solutionInstanceId": instance_id}},
             token=user_token,
         )
-        result = _mutation_result(data, "deleteSolutionInstance")
-        if isinstance(result, dict):
-            return _with_source(result)
-        return {"deleted": bool(result), "source": "official"}
+        return {"deleted": True, "source": "official"}
+
+    async def update_external_user(
+        self,
+        user_id: str,
+        *,
+        name: str | None = None,
+        external_user_id: str | None = None,
+        is_test_user: bool | None = None,
+    ) -> dict[str, Any]:
+        user_input: dict[str, Any] = {"userId": user_id}
+        if name is not None:
+            user_input["name"] = name
+        if external_user_id is not None:
+            user_input["externalUserId"] = external_user_id
+        if is_test_user is not None:
+            user_input["isTestUser"] = is_test_user
+        data = await self._graphql(
+            UPDATE_EXTERNAL_USER_MUTATION,
+            {"input": user_input},
+            token=self.master_token,
+        )
+        result = _mutation_result(data, "updateExternalUser")
+        return _with_source(result if isinstance(result, dict) else {})
+
+    async def remove_external_user(self, user_id: str) -> dict[str, Any]:
+        # RemoveExternalUserPayload carries only clientMutationId.
+        await self._graphql(
+            REMOVE_EXTERNAL_USER_MUTATION,
+            {"input": {"userId": user_id}},
+            token=self.master_token,
+        )
+        return {"deleted": True, "source": "official"}
 
     async def set_instance_config(
         self,
