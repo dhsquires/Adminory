@@ -1,5 +1,6 @@
 """Official Tray Embedded GraphQL operations."""
 
+import os
 from typing import Any
 
 
@@ -225,3 +226,79 @@ class EmbeddedOperationsMixin:
         if isinstance(result, dict):
             return _with_source(result)
         return {"deleted": bool(result), "source": "official"}
+
+    async def set_instance_config(
+        self,
+        instance_id: str,
+        config_values: list[dict[str, Any]],
+        auth_values: list[dict[str, Any]],
+        *,
+        user_token: str,
+    ) -> dict[str, Any]:
+        """Replace an instance's config/auth slot values with a user token."""
+        data = await self._graphql(
+            UPDATE_SOLUTION_INSTANCE_MUTATION,
+            {
+                "input": {
+                    "solutionInstanceId": instance_id,
+                    "configValues": config_values,
+                    "authValues": auth_values,
+                    "errorOnEnablingWithMissingValues": True,
+                }
+            },
+            token=user_token,
+        )
+        result = _mutation_result(
+            data,
+            "updateSolutionInstance",
+            "solutionInstance",
+        )
+        return _with_source(result if isinstance(result, dict) else {})
+
+    async def upgrade_solution_instance(
+        self,
+        instance_id: str,
+        solution_version: str,
+        *,
+        user_token: str,
+    ) -> dict[str, Any]:
+        """Upgrade an instance only after the unconfirmed wire is enabled."""
+        if os.getenv("TRAY_ALLOW_UNOFFICIAL_WRITES", "").lower() not in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }:
+            raise NotImplementedError(
+                "Tray instance upgrade is unconfirmed and disabled; "
+                "verify the GraphQL wire before enabling unofficial writes"
+            )
+
+        # UNCONFIRMED — verify in GraphQL Playground before enabling this path.
+        upgrade_mutation = """
+        mutation UpgradeSolutionInstance($input: UpgradeSolutionInstanceInput!) {
+          upgradeSolutionInstance(input: $input) {
+            solutionInstance {
+              id
+              name
+              enabled
+            }
+          }
+        }
+        """
+        data = await self._graphql(
+            upgrade_mutation,
+            {
+                "input": {
+                    "solutionInstanceId": instance_id,
+                    "solutionVersion": solution_version,
+                }
+            },
+            token=user_token,
+        )
+        result = _mutation_result(
+            data,
+            "upgradeSolutionInstance",
+            "solutionInstance",
+        )
+        return _with_source(result if isinstance(result, dict) else {})

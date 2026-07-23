@@ -77,4 +77,140 @@ export const trayApi = {
       workspaceConfig(workspaceId)
     )
   },
+
+  enableInstance(
+    workspaceId: string,
+    instanceId: string,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.post<MutationResult>(
+      `${TRAY_API}/instances/${encodeURIComponent(instanceId)}/enable`,
+      undefined,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+
+  disableInstance(
+    workspaceId: string,
+    instanceId: string,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.post<MutationResult>(
+      `${TRAY_API}/instances/${encodeURIComponent(instanceId)}/disable`,
+      undefined,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+
+  deleteInstance(
+    workspaceId: string,
+    instanceId: string,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.delete<MutationResult>(
+      `${TRAY_API}/instances/${encodeURIComponent(instanceId)}`,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+
+  updateInstanceConfig(
+    workspaceId: string,
+    instanceId: string,
+    update: InstanceConfigUpdate,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.post<MutationResult>(
+      `${TRAY_API}/instances/${encodeURIComponent(instanceId)}/config`,
+      update,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+
+  provisionUser(
+    workspaceId: string,
+    user: ProvisionUserInput,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.post<MutationResult>(
+      `${TRAY_API}/users`,
+      user,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+
+  reauthorizeUser(
+    workspaceId: string,
+    userId: string,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.post<MutationResult>(
+      `${TRAY_API}/users/${encodeURIComponent(userId)}/reauthorize`,
+      undefined,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+
+  wizardUrl(
+    workspaceId: string,
+    userId: string,
+    identifiers: WizardUrlInput,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.post<MutationResult>(
+      `${TRAY_API}/users/${encodeURIComponent(userId)}/wizard-url`,
+      identifiers,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+
+  publishSolution(
+    workspaceId: string,
+    solutionId: string,
+    confirm = false
+  ): Promise<MutationResult> {
+    return apiClient.post<MutationResult>(
+      `${TRAY_API}/solutions/${encodeURIComponent(solutionId)}/publish`,
+      undefined,
+      mutationConfig(workspaceId, confirm)
+    )
+  },
+}
+
+function mutationConfig(workspaceId: string, confirm: boolean) {
+  return workspaceConfig(workspaceId, {
+    confirm: String(confirm),
+  })
+}
+
+export interface ConfigValueInput {
+  externalId: string
+  value: unknown
+}
+
+export interface AuthValueInput {
+  externalId: string
+  authId: string
+}
+
+export interface InstanceConfigUpdate {
+  config_values: ConfigValueInput[]
+  auth_values: AuthValueInput[]
+  enable?: boolean
+}
+
+export interface MutationResult {
+  dry_run: boolean
+  would_send: Record<string, unknown>
+  applied: boolean
+  warning?: string | null
+}
+
+export interface ProvisionUserInput {
+  name: string
+  externalUserId: string
+}
+
+export interface WizardUrlInput {
+  solution_id: string
+  instance_id: string
 }

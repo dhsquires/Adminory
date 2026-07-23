@@ -2,13 +2,16 @@
 
 import { KeyRound, UserRound } from 'lucide-react'
 import { HealthBadge } from '@/components/tray/HealthBadge'
+import { ProvisionUserDialog } from '@/components/tray/ProvisionUserDialog'
 import { SourceBadge } from '@/components/tray/SourceBadge'
+import { ProvisionUserInput, trayApi } from '@/lib/trayApi'
+import { toast } from '@/stores/toastStore'
 import { useTrayStore } from '@/stores/trayStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 
 export default function TrayUsersPage() {
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace)
-  const { users, isLoading, error } = useTrayStore()
+  const { users, isLoading, error, fetchEstate } = useTrayStore()
 
   if (!currentWorkspace) {
     return <Message title="Choose a workspace" detail="Select a workspace above." />
@@ -22,16 +25,35 @@ export default function TrayUsersPage() {
     return <Message title="End users could not load" detail={error} error />
   }
 
+  const provisionUser = async (
+    user: ProvisionUserInput,
+    confirm: boolean
+  ) => {
+    const result = await trayApi.provisionUser(
+      currentWorkspace.id,
+      user,
+      confirm
+    )
+    if (confirm) {
+      toast.success('Tray end user provisioned', user.externalUserId)
+      await fetchEstate(currentWorkspace.id)
+    }
+    return result
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-indigo-600">Authentication</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
-          End Users
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Token state and authentication health, before everything else.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-indigo-600">Authentication</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
+            End Users
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Token state and authentication health, before everything else.
+          </p>
+        </div>
+        <ProvisionUserDialog onProvision={provisionUser} />
       </div>
 
       {users.length === 0 ? (

@@ -133,3 +133,129 @@ class EstateOverview(TrayDTO):
     triage: list[TriageSignal] = Field(default_factory=list)
     signal_counts: dict[str, int] = Field(default_factory=dict)
     source: Source = "unofficial"
+
+
+class ConfigValueIn(TrayDTO):
+    """One instance config value keyed by a Solution slot external ID."""
+
+    externalId: str
+    value: Any
+
+
+class AuthValueIn(TrayDTO):
+    """One instance authentication assignment keyed by external ID."""
+
+    externalId: str
+    authId: str
+
+
+class InstanceConfigUpdate(TrayDTO):
+    """Complete config/auth payload for a live Solution instance."""
+
+    config_values: list[ConfigValueIn] = Field(default_factory=list)
+    auth_values: list[AuthValueIn] = Field(default_factory=list)
+    enable: bool | None = None
+
+
+class MutationResult(TrayDTO):
+    """Safety envelope shared by every mutation endpoint."""
+
+    dry_run: bool
+    would_send: dict[str, Any]
+    applied: bool
+    warning: str | None = None
+
+
+class ProvisionUserIn(TrayDTO):
+    """End-user identity registered with Tray Embedded."""
+
+    name: str
+    externalUserId: str
+
+
+class WizardUrlIn(TrayDTO):
+    """Identifiers required to construct a Config Wizard URL."""
+
+    solution_id: str
+    instance_id: str
+
+
+def _slot_value(slot: Any, *names: str, default: Any = None) -> Any:
+    if isinstance(slot, dict):
+        for name in names:
+            if name in slot:
+                return slot[name]
+        return default
+    for name in names:
+        if hasattr(slot, name):
+            return getattr(slot, name)
+    return default
+
+
+def _slot_groups(
+    solution_slots: Any,
+) -> tuple[list[Any], list[Any]]:
+    if isinstance(solution_slots, dict):
+        config_slots = solution_slots.get(
+            "config_slots",
+            solution_slots.get("configSlots", []),
+        )
+        auth_slots = solution_slots.get(
+            "auth_slots",
+            solution_slots.get("authSlots", []),
+        )
+        return list(config_slots or []), list(auth_slots or [])
+    return list(solution_slots or []), []
+
+
+def validate_config_against_slots(
+    update: InstanceConfigUpdate,
+    solution_slots: Any,
+) -> None:
+    """Validate external IDs and required config values before a live write."""
+    config_slots, auth_slots = _slot_groups(solution_slots)
+    config_ids = {
+        str(_slot_value(slot, "externalId", "external_id"))
+        for slot in config_slots
+        if _slot_value(slot, "externalId", "external_id") is not None
+    }
+    auth_ids = {
+        str(_slot_value(slot, "externalId", "external_id"))
+        for slot in auth_slots
+        if _slot_value(slot, "externalId", "external_id") is not None
+    }
+
+    unknown_config = sorted(
+        item.externalId
+        for item in update.config_values
+        if item.externalId not in config_ids
+    )
+    unknown_auth = sorted(
+        item.externalId
+        for item in update.auth_values
+        if item.externalId not in auth_ids
+    )
+    unknown = unknown_config + unknown_auth
+    if unknown:
+        raise ValueError(
+            "Unknown Solution slot externalId(s): " + ", ".join(unknown)
+        )
+
+    if update.enable:
+        provided = {item.externalId: item.value for item in update.config_values}
+        missing: list[str] = []
+        for slot in config_slots:
+            if not bool(_slot_value(slot, "required", default=False)):
+                continue
+            external_id = str(_slot_value(slot, "externalId", "external_id", default=""))
+            value = provided.get(
+                external_id,
+                _slot_value(slot, "value", "currentValue", "current_value"),
+            )
+            if value is None or (isinstance(value, str) and not value.strip()):
+                missing.append(external_id)
+        if missing:
+            raise ValueError(
+                "Required config slot(s) must be set before enabling: "
+                + ", ".join(sorted(missing))
+            )
