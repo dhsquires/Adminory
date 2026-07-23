@@ -7,7 +7,7 @@ import { toast } from '@/stores/toastStore'
 interface AuthState {
   user: User | null
   accessToken: string | null
-  refreshToken: string | null
+  refreshTokenValue: string | null
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthStore>()(
       // Initial state
       user: null,
       accessToken: null,
-      refreshToken: null,
+      refreshTokenValue: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user: response.user,
             accessToken: response.access_token,
-            refreshToken: response.refresh_token,
+            refreshTokenValue: response.refresh_token,
             isAuthenticated: true,
             isLoading: false,
           })
@@ -85,7 +85,11 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: async () => {
-        const { refreshToken } = get()
+        const refreshToken =
+          get().refreshTokenValue ||
+          (typeof window !== 'undefined'
+            ? localStorage.getItem('refresh_token')
+            : null)
         try {
           if (refreshToken) {
             await apiClient.post('/api/auth/logout', { refresh_token: refreshToken })
@@ -99,7 +103,11 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       refreshToken: async () => {
-        const { refreshToken } = get()
+        const refreshToken =
+          get().refreshTokenValue ||
+          (typeof window !== 'undefined'
+            ? localStorage.getItem('refresh_token')
+            : null)
         if (!refreshToken) {
           get().clearAuth()
           return
@@ -113,7 +121,7 @@ export const useAuthStore = create<AuthStore>()(
 
           set({
             accessToken: response.access_token,
-            refreshToken: response.refresh_token,
+            refreshTokenValue: response.refresh_token,
           })
 
           // Update tokens in localStorage
@@ -132,7 +140,11 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       setTokens: (accessToken: string, refreshToken: string) => {
-        set({ accessToken, refreshToken, isAuthenticated: true })
+        set({
+          accessToken,
+          refreshTokenValue: refreshToken,
+          isAuthenticated: true,
+        })
         if (typeof window !== 'undefined') {
           localStorage.setItem('access_token', accessToken)
           localStorage.setItem('refresh_token', refreshToken)
@@ -143,7 +155,7 @@ export const useAuthStore = create<AuthStore>()(
         set({
           user: null,
           accessToken: null,
-          refreshToken: null,
+          refreshTokenValue: null,
           isAuthenticated: false,
           error: null,
         })
@@ -162,7 +174,7 @@ export const useAuthStore = create<AuthStore>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
+        refreshTokenValue: state.refreshTokenValue,
         isAuthenticated: state.isAuthenticated,
       }),
     }
