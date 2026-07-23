@@ -13,6 +13,7 @@
 - [02 — Read/ops API + estate rollup](./specs/02-read-ops-api.md)
 - [03 — Frontend ops UI](./specs/03-frontend-ops-ui.md)
 - [04 — Writes + config-data editor](./specs/04-writes-config-editor.md)
+- [05 — Embedded schema correction](./specs/05-embedded-schema-correction.md)
 
 ## Execution
 - Branch: `feat/tray-embedded-ops`
