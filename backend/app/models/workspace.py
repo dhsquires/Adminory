@@ -68,7 +68,7 @@ class Workspace(Base):
 
     # JSON fields for flexible data
     settings: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    workspace_metadata: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -102,7 +102,7 @@ class Workspace(Base):
             "sso_enabled": self.sso_enabled,
             "sso_enforced": self.sso_enforced,
             "settings": self.settings or {},
-            "metadata": self.metadata or {},
+            "metadata": self.workspace_metadata or {},
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

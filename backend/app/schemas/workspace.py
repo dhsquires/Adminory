@@ -81,3 +81,8 @@ class WorkspaceInvite(BaseModel):
 class WorkspaceWithMembersResponse(WorkspaceResponse):
     """Schema for workspace with members."""
     members: list[WorkspaceMemberResponse] = []
+
+
+# Resolve forward references (WorkspaceResponse.members refers to a class defined below it)
+WorkspaceResponse.model_rebuild()
+WorkspaceWithMembersResponse.model_rebuild()
