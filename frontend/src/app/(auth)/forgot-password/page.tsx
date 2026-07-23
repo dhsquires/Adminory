@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
             link shortly.
           </p>
           <p className="text-sm text-gray-500 mb-6">
-            Please check your spam folder if you don't see the email.
+            Please check your spam folder if you don&apos;t see the email.
           </p>
           <Link
             href="/auth/login"
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
         Forgot Password?
       </h2>
       <p className="text-gray-600 mb-6 text-center">
-        Enter your email address and we'll send you a link to reset your
+        Enter your email address and we&apos;ll send you a link to reset your
         password.
       </p>
 
